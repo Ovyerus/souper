@@ -12,7 +12,9 @@ pub trait NodeExt: Sized {
     fn is_document(&self) -> bool {
         let node = self.get_node();
         match node.data() {
-            NodeData::Document { .. } => true,
+            NodeData::Document {
+                ..
+            } => true,
             _ => false,
         }
     }
@@ -21,7 +23,9 @@ pub trait NodeExt: Sized {
     fn is_doctype(&self) -> bool {
         let node = self.get_node();
         match node.data() {
-            NodeData::Doctype { .. } => true,
+            NodeData::Doctype {
+                ..
+            } => true,
             _ => false,
         }
     }
@@ -30,7 +34,9 @@ pub trait NodeExt: Sized {
     fn is_text(&self) -> bool {
         let node = self.get_node();
         match node.data() {
-            NodeData::Text { .. } => true,
+            NodeData::Text {
+                ..
+            } => true,
             _ => false,
         }
     }
@@ -39,7 +45,9 @@ pub trait NodeExt: Sized {
     fn is_comment(&self) -> bool {
         let node = self.get_node();
         match node.data() {
-            NodeData::Comment { .. } => true,
+            NodeData::Comment {
+                ..
+            } => true,
             _ => false,
         }
     }
@@ -48,7 +56,9 @@ pub trait NodeExt: Sized {
     fn is_processing_instruction(&self) -> bool {
         let node = self.get_node();
         match node.data() {
-            NodeData::ProcessingInstruction { .. } => true,
+            NodeData::ProcessingInstruction {
+                ..
+            } => true,
             _ => false,
         }
     }
@@ -57,7 +67,9 @@ pub trait NodeExt: Sized {
     fn is_element(&self) -> bool {
         let node = self.get_node();
         match node.data() {
-            NodeData::Element { .. } => true,
+            NodeData::Element {
+                ..
+            } => true,
             _ => false,
         }
     }
@@ -185,12 +197,8 @@ pub trait NodeExt: Sized {
                     )
                 }
             },
-            NodeData::Text (
-                ref contents
-            ) => contents.borrow().to_string(),
-            NodeData::Comment (
-                ref contents
-            ) => format!("<!--{}-->", contents.borrow()),
+            NodeData::Text(ref contents) => contents.borrow().to_string(),
+            NodeData::Comment(ref contents) => format!("<!--{}-->", contents.borrow()),
             _ => "".to_string(),
         }
     }

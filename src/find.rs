@@ -33,8 +33,7 @@ where
 impl<P: Pattern> Query for TagQuery<P> {
     fn matches(&self, node: &Node) -> bool {
         match node.data() {
-            NodeData::Element(elem_data) =>
-                self.inner.matches(elem_data.name.local.as_ref()),
+            NodeData::Element(elem_data) => self.inner.matches(elem_data.name.local.as_ref()),
             _ => false,
         }
     }
@@ -269,14 +268,18 @@ where
     /// #   Ok(())
     /// # }
     /// ```
-    pub fn attr_name<P>(self, name: P) -> QueryBuilder<'a, AttrQuery<P, bool>, QueryWrapper<'a, T, U>>
+    pub fn attr_name<P>(
+        self,
+        name: P,
+    ) -> QueryBuilder<'a, AttrQuery<P, bool>, QueryWrapper<'a, T, U>>
     where
-        P: Pattern
+        P: Pattern,
     {
         self.push_query(AttrQuery::new(name, true))
     }
 
-    /// Search for a node with any attribute with a value that matches the specified value
+    /// Search for a node with any attribute with a value that matches the
+    /// specified value
     ///
     /// # Example
     ///
@@ -291,9 +294,12 @@ where
     /// #   Ok(())
     /// # }
     /// ```
-    pub fn attr_value<P>(self, value: P) -> QueryBuilder<'a, AttrQuery<bool, P>, QueryWrapper<'a, T, U>>
+    pub fn attr_value<P>(
+        self,
+        value: P,
+    ) -> QueryBuilder<'a, AttrQuery<bool, P>, QueryWrapper<'a, T, U>>
     where
-        P: Pattern
+        P: Pattern,
     {
         self.push_query(AttrQuery::new(true, value))
     }
@@ -350,8 +356,8 @@ where
         self.attr("class", value)
     }
 
-    /// Specifies whether the query should recurse all the way through the document, or
-    /// stay localized to the queried tag and it's children
+    /// Specifies whether the query should recurse all the way through the
+    /// document, or stay localized to the queried tag and it's children
     pub fn recursive(mut self, recursive: bool) -> Self {
         self.recursive = recursive;
         self
@@ -454,11 +460,7 @@ impl<'a, T: Query + 'a, U: Query + 'a> IntoIterator for QueryBuilder<'a, T, U> {
 
     fn into_iter(self) -> Self::IntoIter {
         let queries = Rc::new(self.queries);
-        let recurse_levels = if self.recursive {
-            None
-        } else {
-            Some(1u8)
-        };
+        let recurse_levels = if self.recursive { None } else { Some(1u8) };
         let iter = build_iter(self.handle, queries, recurse_levels);
         let iter: BoxNodeIter<'_> = Box::new(iter.flat_map(|node| node));
         if let Some(limit) = self.limit {

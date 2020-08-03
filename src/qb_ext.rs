@@ -31,9 +31,12 @@ pub trait QueryBuilderExt {
     }
 
     /// Starts building a Query, with attr name `name`
-    fn attr_name<'a, P>(&self, name: P) -> QueryBuilder<'a, AttrQuery<P, bool>, QueryWrapper<'a, (), ()>>
+    fn attr_name<'a, P>(
+        &self,
+        name: P,
+    ) -> QueryBuilder<'a, AttrQuery<P, bool>, QueryWrapper<'a, (), ()>>
     where
-        P: Pattern
+        P: Pattern,
     {
         let handle = self.get_handle();
         let qb = QueryBuilder::new(handle);
@@ -41,9 +44,12 @@ pub trait QueryBuilderExt {
     }
 
     /// Starts building a Query, with attr value `value`
-    fn attr_value<'a, P>(&self, value: P) -> QueryBuilder<'a, AttrQuery<bool, P>, QueryWrapper<'a, (), ()>>
+    fn attr_value<'a, P>(
+        &self,
+        value: P,
+    ) -> QueryBuilder<'a, AttrQuery<bool, P>, QueryWrapper<'a, (), ()>>
     where
-        P: Pattern
+        P: Pattern,
     {
         let handle = self.get_handle();
         let qb = QueryBuilder::new(handle);
@@ -143,7 +149,9 @@ impl fmt::Debug for NodeParentIter {
 
 impl NodeParentIter {
     pub fn new(handle: Handle) -> NodeParentIter {
-        NodeParentIter { inner: handle }
+        NodeParentIter {
+            inner: handle,
+        }
     }
 }
 
