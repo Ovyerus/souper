@@ -1,15 +1,17 @@
-use html5ever::rcdom::{self, Handle, NodeData};
+use kuchiki::{Attribute, Attributes, ElementData, ExpandedName, NodeData, NodeRef};
 use std::collections::BTreeMap;
 
-/// Adds some convenience methods to the `html5ever::rcdom::Node` type
+use crate::Handle;
+
+/// Adds some convenience methods to the `kuchiki::Node` type
 pub trait NodeExt: Sized {
     /// Retrieves the node that these methods will work on
-    fn get_node(&self) -> &rcdom::Node;
+    fn get_node(&self) -> &NodeRef;
 
     /// Returns `true` if node is of type Document
     fn is_document(&self) -> bool {
         let node = self.get_node();
-        match node.data {
+        match node.data() {
             NodeData::Document { .. } => true,
             _ => false,
         }
@@ -18,7 +20,7 @@ pub trait NodeExt: Sized {
     /// Returns `true` if node is of type Doctype
     fn is_doctype(&self) -> bool {
         let node = self.get_node();
-        match node.data {
+        match node.data() {
             NodeData::Doctype { .. } => true,
             _ => false,
         }
@@ -27,7 +29,7 @@ pub trait NodeExt: Sized {
     /// Returns `true` if node is of type Text
     fn is_text(&self) -> bool {
         let node = self.get_node();
-        match node.data {
+        match node.data() {
             NodeData::Text { .. } => true,
             _ => false,
         }
@@ -36,7 +38,7 @@ pub trait NodeExt: Sized {
     /// Returns `true` if node is of type Comment
     fn is_comment(&self) -> bool {
         let node = self.get_node();
-        match node.data {
+        match node.data() {
             NodeData::Comment { .. } => true,
             _ => false,
         }
@@ -45,7 +47,7 @@ pub trait NodeExt: Sized {
     /// Returns `true` if node is of type ProcessingInstruction
     fn is_processing_instruction(&self) -> bool {
         let node = self.get_node();
-        match node.data {
+        match node.data() {
             NodeData::ProcessingInstruction { .. } => true,
             _ => false,
         }
@@ -54,7 +56,7 @@ pub trait NodeExt: Sized {
     /// Returns `true` if node is of type Element
     fn is_element(&self) -> bool {
         let node = self.get_node();
-        match node.data {
+        match node.data() {
             NodeData::Element { .. } => true,
             _ => false,
         }
@@ -72,10 +74,11 @@ pub trait NodeExt: Sized {
     /// * ProcessingInstruction -> "\[processing-instruction\]"
     fn name(&self) -> &str {
         let node = self.get_node();
-        match node.data {
+        match node.data() {
             NodeData::Document {
                 ..
             } => "[document]",
+            NodeData::DocumentFragment => "[document-fragment]",
             NodeData::Doctype {
                 ..
             } => "[doctype]",
@@ -88,9 +91,9 @@ pub trait NodeExt: Sized {
             NodeData::ProcessingInstruction {
                 ..
             } => "[processing-instruction]",
-            NodeData::Element {
+            NodeData::Element(ElementData {
                 ref name, ..
-            } => name.local.as_ref(),
+            }) => name.local.as_ref(),
         }
     }
 
@@ -111,11 +114,9 @@ pub trait NodeExt: Sized {
     /// ```
     fn get(&self, attr: &str) -> Option<String> {
         let node = self.get_node();
-        match node.data {
-            NodeData::Element {
-                ref attrs, ..
-            } => {
-                let attrs = attrs.borrow();
+        match node.data() {
+            NodeData::Element(elem_data) => {
+                let attrs = elem_data.attributes.borrow();
                 for it in attrs.iter() {
                     let name = it.name.local.as_ref();
                     if name.to_lowercase() == attr.to_lowercase() {
@@ -131,11 +132,9 @@ pub trait NodeExt: Sized {
     /// Returns the node's attributes as a BTreeMap
     fn attrs(&self) -> BTreeMap<String, String> {
         let node = self.get_node();
-        match node.data {
-            NodeData::Element {
-                ref attrs, ..
-            } => {
-                let attrs = attrs.borrow();
+        match node.data() {
+            NodeData::Element(elem_data) => {
+                let attrs = elem_data.attributes.borrow();
                 attrs
                     .iter()
                     .map(|attr| (attr.name.local.to_string(), attr.value.to_string()))
@@ -156,23 +155,21 @@ pub trait NodeExt: Sized {
     /// Returns the node as an html tag
     fn display(&self) -> String {
         let node = self.get_node();
-        match node.data {
-            NodeData::Element {
+        match node.data() {
+            NodeData::Element(ElementData {
                 ref name,
-                ref attrs,
+                ref attributes,
                 ..
-            } => {
+            }) => {
                 let c = node
-                    .children
-                    .borrow()
-                    .iter()
+                    .children()
                     .map(|child| child.display())
                     .collect::<Vec<_>>()
                     .join("");
-                let mut a = attrs
+                let mut a = attributes
                     .borrow()
                     .iter()
-                    .map(|attr| format!(r#"{}="{}""#, attr.name.local, attr.value.as_ref()))
+                    .map(|attr| format!(r#"{}="{}""#, attr.name.local, attr.value))
                     .collect::<Vec<_>>();
                 a.sort();
                 let a = a.join(" ");
@@ -188,12 +185,12 @@ pub trait NodeExt: Sized {
                     )
                 }
             },
-            NodeData::Text {
-                ref contents, ..
-            } => contents.borrow().as_ref().to_string(),
-            NodeData::Comment {
-                ref contents, ..
-            } => format!("<!--{}-->", contents.as_ref()),
+            NodeData::Text (
+                ref contents
+            ) => contents.borrow().to_string(),
+            NodeData::Comment (
+                ref contents
+            ) => format!("<!--{}-->", contents.borrow()),
             _ => "".to_string(),
         }
     }
@@ -216,38 +213,64 @@ pub trait NodeExt: Sized {
     /// # }
     /// ```
     fn parent(&self) -> Option<Handle> {
-        let node = self.get_node();
-        let parent = node.parent.take(); // leaves node.parent as Cell(None)
-        let parent_node = parent.clone();
-        node.parent.set(parent); // puts original parent back?
-        parent_node.and_then(|node| node.upgrade())
+        self.get_node().0.parent()
     }
 }
 
-fn extract_text(node: &rcdom::Node, result: &mut Vec<String>) {
-    match node.data {
-        NodeData::Text {
-            ref contents, ..
-        } => result.push(contents.borrow().to_string()),
+fn extract_text(node: &NodeRef, result: &mut Vec<String>) {
+    match node.data() {
+        NodeData::Text(ref contents) => result.push(contents.borrow().to_string()),
         _ => (),
     }
-    let children = node.children.borrow();
-    for child in children.iter() {
-        extract_text(child, result);
+    for child in node.children() {
+        extract_text(&child, result);
     }
 }
 
 impl NodeExt for Handle {
     #[inline(always)]
-    fn get_node(&self) -> &rcdom::Node {
+    fn get_node(&self) -> &NodeRef {
         &*self
     }
 }
 
-impl<'node> NodeExt for &'node rcdom::Node {
+impl<'node> NodeExt for &'node NodeRef {
     #[inline(always)]
-    fn get_node(&self) -> &rcdom::Node {
+    fn get_node(&self) -> &NodeRef {
         self
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ExtAttr<'a> {
+    pub name: &'a ExpandedName,
+    pub value: &'a String,
+}
+
+#[derive(Debug, Clone)]
+pub struct AttrIter<'a>(std::collections::btree_map::Iter<'a, ExpandedName, Attribute>);
+
+impl<'a> Iterator for AttrIter<'a> {
+    type Item = ExtAttr<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (name, attr) = self.0.next()?;
+        Some(ExtAttr {
+            name,
+            value: &attr.value,
+        })
+    }
+}
+
+/// Adds iter() to the Attributes struct from Kuchiki
+pub trait AttributeExt {
+    /// Returns an iterator over all the attributes, with a type matching RcDom.
+    fn iter(&self) -> AttrIter<'_>;
+}
+
+impl AttributeExt for Attributes {
+    fn iter(&self) -> AttrIter<'_> {
+        AttrIter(self.map.iter())
     }
 }
 

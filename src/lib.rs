@@ -298,14 +298,16 @@
     rust_2018_idioms
 )]
 extern crate html5ever;
+extern crate kuchiki;
 #[cfg(feature = "regex")]
 extern crate regex;
 
-use html5ever::{
-    parse_document,
-    rcdom::RcDom,
-    tendril::TendrilSink,
-};
+use html5ever::tendril::TendrilSink;
+type RcDom = kuchiki::NodeRef;
+
+/// The type of a DOM node
+pub type Handle = kuchiki::NodeRef;
+
 use std::{
     fmt,
     io::{self, Read},
@@ -314,7 +316,12 @@ use std::{
 /// This module exports all the important types & traits to use `soup`
 /// effectively
 pub mod prelude {
-    pub use crate::{node_ext::NodeExt, qb_ext::QueryBuilderExt, Soup};
+    pub use crate::{
+        node_ext::{AttributeExt, NodeExt},
+        qb_ext::QueryBuilderExt,
+        Handle,
+        Soup,
+    };
 }
 
 pub use crate::{find::QueryBuilder, node_ext::NodeExt, qb_ext::QueryBuilderExt};
@@ -359,7 +366,7 @@ impl Soup {
     /// # }
     /// ```
     pub fn new(html: &str) -> Soup {
-        let dom = parse_document(RcDom::default(), Default::default())
+        let dom = kuchiki::parse_html()
             .from_utf8()
             .one(html.as_bytes());
         Soup {
@@ -384,7 +391,7 @@ impl Soup {
     /// # }
     /// ```
     pub fn from_reader<R: Read>(mut reader: R) -> io::Result<Soup> {
-        let dom = parse_document(RcDom::default(), Default::default())
+        let dom = kuchiki::parse_html()
             .from_utf8()
             .read_from(&mut reader)?;
         Ok(Soup {
@@ -394,7 +401,7 @@ impl Soup {
 
     /// Extracts all text from the HTML
     pub fn text(&self) -> String {
-        self.handle.document.text()
+        self.handle.text()
     }
 }
 
@@ -408,7 +415,7 @@ impl From<RcDom> for Soup {
 
 impl fmt::Debug for Soup {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.handle.document.text())
+        write!(f, "{}", self.handle.text())
     }
 }
 

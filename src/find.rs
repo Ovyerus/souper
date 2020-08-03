@@ -1,11 +1,10 @@
-use html5ever::rcdom::{self, Handle, NodeData};
+use kuchiki::{Node, NodeData};
 use std::{fmt, marker::PhantomData, rc::Rc};
 
-use crate::pattern::Pattern;
-use crate::attribute;
+use crate::{attribute, pattern::Pattern, Handle};
 
 pub trait Query {
-    fn matches(&self, node: &rcdom::Node) -> bool;
+    fn matches(&self, node: &Node) -> bool;
 }
 
 pub struct TagQuery<P> {
@@ -32,11 +31,10 @@ where
 }
 
 impl<P: Pattern> Query for TagQuery<P> {
-    fn matches(&self, node: &rcdom::Node) -> bool {
-        match node.data {
-            NodeData::Element {
-                ref name, ..
-            } => self.inner.matches(name.local.as_ref()),
+    fn matches(&self, node: &Node) -> bool {
+        match node.data() {
+            NodeData::Element(elem_data) =>
+                self.inner.matches(elem_data.name.local.as_ref()),
             _ => false,
         }
     }
@@ -78,13 +76,13 @@ where
     K: Pattern,
     V: Pattern,
 {
-    fn matches(&self, node: &rcdom::Node) -> bool {
+    fn matches(&self, node: &Node) -> bool {
         attribute::list_aware_match(&node, &self.key, &self.value)
     }
 }
 
 impl Query for () {
-    fn matches(&self, _: &rcdom::Node) -> bool {
+    fn matches(&self, _: &Node) -> bool {
         true
     }
 }
@@ -148,7 +146,7 @@ where
     T: Query + 'a,
     U: Query + 'a,
 {
-    fn matches(&self, node: &rcdom::Node) -> bool {
+    fn matches(&self, node: &Node) -> bool {
         let inner_match = self.inner.matches(node);
         if let Some(ref next) = self.next {
             let next_match = next.matches(node);
@@ -484,7 +482,7 @@ fn build_iter<'a, T: Query + 'a, U: Query + 'a>(
             return iter;
         }
     }
-    handle.children.borrow().iter().fold(iter, |acc, child| {
+    handle.children().fold(iter, |acc, child| {
         let child_iter = build_iter(child.clone(), queries.clone(), levels.map(|l| l - 1));
         let child_iter: BoxOptionNodeIter<'_> = Box::new(child_iter);
         Box::new(acc.chain(child_iter))
