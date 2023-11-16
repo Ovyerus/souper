@@ -1,10 +1,10 @@
 use std::fmt;
-use html5ever::rcdom::Handle;
 
 use crate::{
-    Soup,
     find::{AttrQuery, QueryBuilder, QueryWrapper, TagQuery},
     pattern::Pattern,
+    Handle,
+    Soup,
 };
 
 /// Adds the QueryBuilder constructor methods to the implementing type
@@ -31,9 +31,12 @@ pub trait QueryBuilderExt {
     }
 
     /// Starts building a Query, with attr name `name`
-    fn attr_name<'a, P>(&self, name: P) -> QueryBuilder<'a, AttrQuery<P, bool>, QueryWrapper<'a, (), ()>>
+    fn attr_name<'a, P>(
+        &self,
+        name: P,
+    ) -> QueryBuilder<'a, AttrQuery<P, bool>, QueryWrapper<'a, (), ()>>
     where
-        P: Pattern
+        P: Pattern,
     {
         let handle = self.get_handle();
         let qb = QueryBuilder::new(handle);
@@ -41,9 +44,12 @@ pub trait QueryBuilderExt {
     }
 
     /// Starts building a Query, with attr value `value`
-    fn attr_value<'a, P>(&self, value: P) -> QueryBuilder<'a, AttrQuery<bool, P>, QueryWrapper<'a, (), ()>>
+    fn attr_value<'a, P>(
+        &self,
+        value: P,
+    ) -> QueryBuilder<'a, AttrQuery<bool, P>, QueryWrapper<'a, (), ()>>
     where
-        P: Pattern
+        P: Pattern,
     {
         let handle = self.get_handle();
         let qb = QueryBuilder::new(handle);
@@ -103,7 +109,7 @@ pub trait QueryBuilderExt {
     /// ```
     fn children(&self) -> NodeChildIter {
         let handle = self.get_handle();
-        NodeChildIter::new(handle.clone())
+        handle.children()
     }
 
     /// Iterator over the parents of a node
@@ -143,7 +149,9 @@ impl fmt::Debug for NodeParentIter {
 
 impl NodeParentIter {
     pub fn new(handle: Handle) -> NodeParentIter {
-        NodeParentIter { inner: handle }
+        NodeParentIter {
+            inner: handle,
+        }
     }
 }
 
@@ -162,46 +170,7 @@ impl Iterator for NodeParentIter {
 }
 
 /// Iterator over the children of a node
-pub struct NodeChildIter {
-    inner: Handle,
-    idx: usize,
-}
-
-impl NodeChildIter {
-    pub fn new(handle: Handle) -> NodeChildIter {
-        NodeChildIter {
-            inner: handle,
-            idx: 0,
-        }
-    }
-
-    fn len(&self) -> usize {
-        self.inner.children.borrow().len()
-    }
-}
-
-impl Iterator for NodeChildIter {
-    type Item = Handle;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let item = self.inner.children.borrow().get(self.idx).cloned();
-        self.idx += 1;
-        item
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (0, Some(self.len()))
-    }
-}
-
-impl fmt::Debug for NodeChildIter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("NodeChildIter")
-            .field("handle", &"<handle>")
-            .field("idx", &self.idx)
-            .finish()
-    }
-}
+pub type NodeChildIter = kuchiki::iter::Siblings;
 
 impl QueryBuilderExt for Handle {
     fn get_handle(&self) -> Handle {
@@ -211,6 +180,6 @@ impl QueryBuilderExt for Handle {
 
 impl QueryBuilderExt for Soup {
     fn get_handle(&self) -> Handle {
-        self.handle.document.clone()
+        self.handle.clone()
     }
 }

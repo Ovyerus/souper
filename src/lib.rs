@@ -60,9 +60,10 @@
 //! # }
 //! ```
 //!
-//! So we see that `.find` will give us the first element that matches the query, and we've seen some
-//! of the methods that we can call on the results. But what if we want to retrieve more than one
-//! element with the query? For that, we'll use `.find_all`:
+//! So we see that `.find` will give us the first element that matches the
+//! query, and we've seen some of the methods that we can call on the results.
+//! But what if we want to retrieve more than one element with the query? For
+//! that, we'll use `.find_all`:
 //!
 //! ```
 //! # extern crate soup;
@@ -101,8 +102,8 @@
 //! # }
 //! ```
 //!
-//! Since `.find_all` returns an iterator, you can use it with all the methods you would
-//! use with other iterators:
+//! Since `.find_all` returns an iterator, you can use it with all the methods
+//! you would use with other iterators:
 //!
 //! ```
 //! # extern crate soup;
@@ -135,9 +136,9 @@
 //! # }
 //! ```
 //!
-//! The top-level structure we've been working with here, `soup`, implements the same methods
-//! that the query results do, so you can call the same methods on it and it will delegate the
-//! calls to the root node:
+//! The top-level structure we've been working with here, `soup`, implements the
+//! same methods that the query results do, so you can call the same methods on
+//! it and it will delegate the calls to the root node:
 //!
 //! ```
 //! # extern crate soup;
@@ -220,10 +221,11 @@
 //! # }
 //! ```
 //!
-//! (also, passing `false` will always return no results, though if that is useful to you, please let me know)
+//! (also, passing `false` will always return no results, though if that is
+//! useful to you, please let me know)
 //!
-//! So what can you do once you get the result of a query? Well, for one thing, you can traverse the tree a few
-//! different ways. You can ascend the tree:
+//! So what can you do once you get the result of a query? Well, for one thing,
+//! you can traverse the tree a few different ways. You can ascend the tree:
 //!
 //! ```rust
 //! # extern crate soup;
@@ -298,14 +300,16 @@
     rust_2018_idioms
 )]
 extern crate html5ever;
+extern crate kuchiki;
 #[cfg(feature = "regex")]
 extern crate regex;
 
-use html5ever::{
-    parse_document,
-    rcdom::RcDom,
-    tendril::TendrilSink,
-};
+use html5ever::tendril::TendrilSink;
+type RcDom = kuchiki::NodeRef;
+
+/// The type of a DOM node
+pub type Handle = kuchiki::NodeRef;
+
 use std::{
     fmt,
     io::{self, Read},
@@ -314,16 +318,21 @@ use std::{
 /// This module exports all the important types & traits to use `soup`
 /// effectively
 pub mod prelude {
-    pub use crate::{node_ext::NodeExt, qb_ext::QueryBuilderExt, Soup};
+    pub use crate::{
+        node_ext::{AttributeExt, NodeExt},
+        qb_ext::QueryBuilderExt,
+        Handle,
+        Soup,
+    };
 }
 
 pub use crate::{find::QueryBuilder, node_ext::NodeExt, qb_ext::QueryBuilderExt};
 
 mod attribute;
 mod find;
-mod qb_ext;
 mod node_ext;
 pub mod pattern;
+mod qb_ext;
 
 /// Parses HTML & provides methods to query & manipulate the document
 pub struct Soup {
@@ -359,9 +368,7 @@ impl Soup {
     /// # }
     /// ```
     pub fn new(html: &str) -> Soup {
-        let dom = parse_document(RcDom::default(), Default::default())
-            .from_utf8()
-            .one(html.as_bytes());
+        let dom = kuchiki::parse_html().from_utf8().one(html.as_bytes());
         Soup {
             handle: dom,
         }
@@ -384,9 +391,7 @@ impl Soup {
     /// # }
     /// ```
     pub fn from_reader<R: Read>(mut reader: R) -> io::Result<Soup> {
-        let dom = parse_document(RcDom::default(), Default::default())
-            .from_utf8()
-            .read_from(&mut reader)?;
+        let dom = kuchiki::parse_html().from_utf8().read_from(&mut reader)?;
         Ok(Soup {
             handle: dom,
         })
@@ -394,21 +399,21 @@ impl Soup {
 
     /// Extracts all text from the HTML
     pub fn text(&self) -> String {
-        self.handle.document.text()
+        self.handle.text()
     }
 }
 
 impl From<RcDom> for Soup {
     fn from(rc: RcDom) -> Soup {
         Soup {
-            handle: rc
+            handle: rc,
         }
     }
 }
 
 impl fmt::Debug for Soup {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.handle.document.text())
+        write!(f, "{}", self.handle.text())
     }
 }
 
